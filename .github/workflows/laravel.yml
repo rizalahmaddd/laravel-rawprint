@@ -1,0 +1,58 @@
+name: laravel
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - laravel: "9"
+            php: "8.1"
+            testbench: "^7.0"
+            phpunit: "^9.6"
+          - laravel: "10"
+            php: "8.1"
+            testbench: "^8.0"
+            phpunit: "^10.5"
+          - laravel: "11"
+            php: "8.2"
+            testbench: "^9.0"
+            phpunit: "^11.5"
+          - laravel: "12"
+            php: "8.3"
+            testbench: "^10.0"
+            phpunit: "^11.5"
+          - laravel: "13"
+            php: "8.4"
+            testbench: "^11.0"
+            phpunit: "^11.5"
+    name: Laravel ${{ matrix.laravel }} / PHP ${{ matrix.php }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+      - name: Validate composer.json
+        run: composer validate --strict
+      - name: Relax the audit blocker for end-of-life matrix legs
+        run: |
+          php -r '$f = "composer.json"; $j = json_decode(file_get_contents($f), true); $j["config"]["audit"]["block-insecure"] = false; file_put_contents($f, json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);'
+      - name: Install dependencies
+        run: |
+          composer update --no-interaction --no-progress --prefer-dist -W \
+            --with "orchestra/testbench:${{ matrix.testbench }}" \
+            --with "phpunit/phpunit:${{ matrix.phpunit }}"
+      - name: Run tests
+        run: vendor/bin/phpunit
